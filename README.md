@@ -1,6 +1,6 @@
-# Entregable Desarrollo Web y Mobil
+# Entregable Desarrollo Web y Móvil
 
-Repositorio al curso de Desarrollo Web y Mobil
+Repositorio del curso de Desarrollo Web y Móvil.
 
 - Autor: Sebastián Bolívar
 - Sección: 8480
