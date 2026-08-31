@@ -3,4 +3,4 @@
 Repositorio del curso de Desarrollo Web y Móvil.
 
 - Autor: Sebastián Bolívar
-- Sección: 8480
+- NRC: 8480
