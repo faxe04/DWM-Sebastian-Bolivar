@@ -3,6 +3,13 @@
 .env
 .env.*
 !.env.example
+*.pyc
 
 # Modulos
 node_modules/
+
+# Cachea
+__pycache__/
+
+# Entornos Virtuales
+.venv/
