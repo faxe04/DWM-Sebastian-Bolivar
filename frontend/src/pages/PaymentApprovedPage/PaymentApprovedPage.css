@@ -1,0 +1,88 @@
+.payment-approved-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 60vh;
+  padding: 2rem 1rem;
+}
+
+.payment-approved-card {
+  width: 100%;
+  max-width: 500px;
+
+  padding: 2rem;
+
+  background-color: var(--color-cream);
+  border-radius: 10px;
+
+  text-align: center;
+}
+
+.payment-approved-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 70px;
+  height: 70px;
+
+  margin: 0 auto 1.5rem;
+
+  border-radius: 50%;
+
+  background-color: var(--color-green);
+  color: var(--color-white);
+
+  font-size: 2rem;
+}
+
+.payment-approved-card h1 {
+  margin: 0 0 1rem;
+
+  color: var(--color-green-dark);
+}
+
+.payment-approved-card p {
+  margin: 0.5rem 0;
+
+  color: var(--color-text);
+}
+
+.payment-approved-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  margin-top: 2rem;
+}
+
+.payment-approved-actions a {
+  display: block;
+
+  padding: 0.8rem 1rem;
+
+  border-radius: 4px;
+
+  background-color: var(--color-gold);
+  color: var(--color-primary-dark);
+
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.payment-approved-actions a:hover {
+  background-color: var(--color-gold-dark);
+  color: var(--color-white);
+}
+
+@media (min-width: 768px) {
+  .payment-approved-card {
+    padding: 3rem;
+  }
+
+  .payment-approved-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
