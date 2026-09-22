@@ -9,7 +9,7 @@ Repositorio del curso de Desarrollo Web y Móvil.
 
 **v1.1.0**
 
-Implementacion de API REST con FastAPI + MongoDB.
+Implementación de API REST con FastAPI + MongoDB.
 
 ## Historial de versiones
 

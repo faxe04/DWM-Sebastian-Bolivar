@@ -1,0 +1,14 @@
+.contact-page {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+
+  padding: 2rem 1rem;
+
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.contact-info h1 {
+  margin-top: 0;
+}
