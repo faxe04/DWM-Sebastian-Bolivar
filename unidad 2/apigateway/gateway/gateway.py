@@ -1,34 +1,105 @@
-from fastapi import FastAPI
+import os
+import secrets
 import httpx
+from fastapi import FastAPI, Depends, HTTPException, Request, Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 
 app = FastAPI(title = "Local API Gateway")
 
+security = HTTPBearer(auto_error=False)
+
+VAULT_ADDR = os.getenv("VAULT_ADDR", "http://localhost:8200")
+
+VAULT_TOKEN = os.getenv("VAULT_TOKEN")
+
+if not VAULT_TOKEN:
+    raise RuntimeError("VAULT_TOKEN no está configurado")
+
 BACKEND_URL1 = "http://localhost:9000"
 BACKEND_URL2 = "http://localhost:9100"
+ROUTES = {
+    "products": BACKEND_URL1,
+    "productos": BACKEND_URL2
+}
 
 
-@app.gete("/api/products")
-async def products():
-    async with httpx.AsyncClient() as client:
+async def get_gatewat_secrets():
+    url = (
+        f"{VAULT_ADDR}"
+        "/v1/secret/data/gateway"
+    )
+    headers = {
+        "X-Vault-Token": VAULT_TOKEN
+    }
+    async with httpx.AsyncClient(timeout=5.0) as client:
         response = await client.get(
-            f"{BACKEND_URL1}/products"
+            url=url, 
+            headers=headers
         )
-    return response.json()
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=500,
+            detail=f"No fue posible acceder a Vault: {response}"
+        )
+    vault_response = response.json()
+    return vault_response["data"]["data"]
 
 
-@app.gete("/api/productos")
-async def productos():
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{BACKEND_URL2}/productos"
+async def authenticate_client(credentials: HTTPException = Depends(security)):
+    if credentials is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Bearer token requerido"
         )
-    return response.json()
+    vault_secrets = await get_gatewat_secrets()
 
-@app.get("/api/orders")
-async def orders():
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{BACKEND_URL1}/orders"
-        )
-    return response.json()
+    expected_token = vault_secrets["client_token"]
+    received_token = credentials.credentials
+    valid = secrets.compare_digest(received_token, expected_token)
+    if not valid:
+        raise HTTPException(status_code=401, detail="Token Inválido")
+    return {
+        "client_id": "student-client",  # Servicios de Autenticación e identificación del usuario
+        "backend_secret": vault_secrets["backend_shared_secret"]
+    }
+
+
+@app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
+async def proxy(path: str, request: Request, auth=Depends(authenticate_client)):
+    route = path.split("/")[0]
+    backend_url = ROUTES.get(route)
+    target_url = (
+        f"{backend_url}/{path}"
+    )
+    body = await request.body()
+    gateway_headers = {
+        "X-Gateway-Secret": auth["backend_secret"],
+        "X-Authenticated-Client": auth["client_id"] # Autenticador
+    }
+    content_type = request.headers.get("content-type")
+    if content_type:
+        gateway_headers["content_type"] = content_type
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            upstream = await client.request(
+                method=request.method,
+                url=target_url,
+                params=request.query_params,
+                content=body,
+                headers=gateway_headers
+            )
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Backend no disponible")
+
+    response_headers = {}
+    if "content-type" in upstream.headers:
+        response_headers["content-type"] = upstream.headers["content-type"]
+
+    return Response(
+        content=upstream.content,
+        status_code=upstream.status_code,
+        headers=response_headers
+    )
