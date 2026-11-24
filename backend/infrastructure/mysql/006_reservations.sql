@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS reservations (
+    order_id BIGINT UNSIGNED PRIMARY KEY,
+    request_hash CHAR(64) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    items JSON NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,0 +1,10 @@
+# HTTPS local opcional; conserva el puerto 8000 pero cambia http por https.
+services:
+  gateway:
+    command: ["uvicorn", "backend.gateway.gateway:app", "--host", "0.0.0.0", "--port", "8000", "--ssl-keyfile", "/run/secrets/tls_key", "--ssl-certfile", "/run/secrets/tls_cert"]
+    secrets: [vault_gateway_token, tls_key, tls_cert]
+secrets:
+  tls_key:
+    file: ./.runtime/localhost.key
+  tls_cert:
+    file: ./.runtime/localhost.crt

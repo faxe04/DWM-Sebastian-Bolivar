@@ -1,0 +1,12 @@
+.runtime/
+__pycache__/
+.venv/
+.env
+.env.*
+
+!.env.example
+node_modules/
+
+/compose.local.yaml
+.nouse/
+**/base/
