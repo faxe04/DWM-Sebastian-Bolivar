@@ -1,0 +1,17 @@
+.contenido
+.venv
+.runtime
+.env
+.env.*
+**/.env
+**/.env.*
+**/__pycache__
+
+.nouse
+**/base
+
+**/node_modules
+
+docs
+GUIA_PERSONAL.md
+compose.local.yaml

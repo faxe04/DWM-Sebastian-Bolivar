@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS receipt_deliveries (
+    sale_id BIGINT UNSIGNED PRIMARY KEY,
+    mail_id BIGINT UNSIGNED NOT NULL,
+    FOREIGN KEY (mail_id) REFERENCES mail_outbox (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

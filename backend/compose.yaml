@@ -1,0 +1,252 @@
+name: aroma-backend-dev
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: inventory
+      MYSQL_USER: inventory_app
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+    secrets: [mysql_root_password, mysql_password]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infrastructure/mysql/001_inventory.sql:/docker-entrypoint-initdb.d/001_inventory.sql:ro
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  inventory:
+    build: .
+    environment:
+      DB_HOST: mysql
+      DB_NAME: inventory
+      DB_USER: inventory_app
+      DB_PASS_FILE: /run/secrets/mysql_password
+      INTERNAL_GATEWAY_SECRET_FILE: /run/secrets/inventory_gateway_secret
+      ORDERS_INVENTORY_SECRET_FILE: /run/secrets/orders_inventory_secret
+    secrets: [mysql_password, inventory_gateway_secret, orders_inventory_secret]
+    networks: [private]
+    depends_on:
+      mysql:
+        condition: service_healthy
+  auth-init:
+    build: .
+    command: ["python", "-m", "backend.scripts.init_auth"]
+    environment:
+      DB_HOST: mysql
+    secrets: [mysql_root_password, auth_db_password, demo_admin_password, demo_client_password]
+    networks: [private]
+    depends_on:
+      mysql:
+        condition: service_healthy
+  auth:
+    build: .
+    command: ["uvicorn", "backend.auth.main:app", "--host", "0.0.0.0", "--port", "8100"]
+    environment:
+      DB_HOST: mysql
+      DB_NAME: auth
+      DB_USER: auth_app
+      DB_PASS_FILE: /run/secrets/auth_db_password
+      AUTH_INTROSPECTION_SECRET_FILE: /run/secrets/auth_introspection_secret
+      CLIENTS_AUTH_SECRET_FILE: /run/secrets/clients_auth_secret
+    secrets: [auth_db_password, auth_introspection_secret, clients_auth_secret]
+    networks: [private]
+    depends_on:
+      auth-init:
+        condition: service_completed_successfully
+  integration-tests:
+    build: .
+    profiles: [test]
+    command: ["python", "-m", "unittest", "backend.tests.integration_inventory", "backend.tests.integration_auth", "-v"]
+    environment:
+      INVENTORY_TEST_URL: http://inventory:9000
+      INVENTORY_TEST_SECRET_FILE: /run/secrets/inventory_gateway_secret
+    secrets: [inventory_gateway_secret, auth_introspection_secret, demo_admin_password, demo_client_password]
+    networks: [private]
+    depends_on: [inventory, auth]
+  services-init:
+    build: .
+    command: ["python", "-m", "backend.scripts.init_services"]
+    environment:
+      DB_HOST: mysql
+    secrets: [mysql_root_password, clients_db_password, orders_db_password, payments_db_password]
+    networks: [private]
+    depends_on:
+      mysql:
+        condition: service_healthy
+  clients:
+    build: .
+    command: ["uvicorn", "backend.services.clients.main:app", "--host", "0.0.0.0", "--port", "9200"]
+    environment:
+      DB_HOST: mysql
+      DB_NAME: clients
+      DB_USER: clients_app
+      DB_PASS_FILE: /run/secrets/clients_db_password
+      INTERNAL_GATEWAY_SECRET_FILE: /run/secrets/clients_gateway_secret
+      DEMO_MODE: "${DEMO_MODE:-true}"
+      ORDERS_CLIENTS_SECRET_FILE: /run/secrets/orders_clients_secret
+      CLIENTS_AUTH_SECRET_FILE: /run/secrets/clients_auth_secret
+      AUTH_SERVICE_URL: http://auth:8100
+    secrets: [clients_db_password, clients_gateway_secret, orders_clients_secret, clients_auth_secret]
+    networks: [private]
+    depends_on:
+      services-init:
+        condition: service_completed_successfully
+  orders:
+    build: .
+    command: ["uvicorn", "backend.services.orders.main:app", "--host", "0.0.0.0", "--port", "9100"]
+    environment:
+      DB_HOST: mysql
+      DB_NAME: orders
+      DB_USER: orders_app
+      DB_PASS_FILE: /run/secrets/orders_db_password
+      INTERNAL_GATEWAY_SECRET_FILE: /run/secrets/orders_gateway_secret
+      CLIENTS_URL: http://clients:9200
+      INVENTORY_URL: http://inventory:9000
+      PAYMENTS_URL: http://payments:9300
+      SHOP_LATITUDE: "${SHOP_LATITUDE:--33.4489}"
+      SHOP_LONGITUDE: "${SHOP_LONGITUDE:--70.6693}"
+      ORDERS_CLIENTS_SECRET_FILE: /run/secrets/orders_clients_secret
+      ORDERS_INVENTORY_SECRET_FILE: /run/secrets/orders_inventory_secret
+      INVENTORY_GATEWAY_SECRET_FILE: /run/secrets/inventory_gateway_secret
+      PAYMENTS_ORDERS_SECRET_FILE: /run/secrets/payments_orders_secret
+      ORDERS_PAYMENTS_SECRET_FILE: /run/secrets/orders_payments_secret
+    secrets: [orders_db_password, orders_gateway_secret, orders_clients_secret, orders_inventory_secret, inventory_gateway_secret, payments_orders_secret, orders_payments_secret]
+    networks: [private]
+    depends_on:
+      services-init:
+        condition: service_completed_successfully
+  payments:
+    build: .
+    command: ["uvicorn", "backend.services.payments.main:app", "--host", "0.0.0.0", "--port", "9300"]
+    environment:
+      DB_HOST: mysql
+      DB_NAME: payments
+      DB_USER: payments_app
+      DB_PASS_FILE: /run/secrets/payments_db_password
+      INTERNAL_GATEWAY_SECRET_FILE: /run/secrets/payments_gateway_secret
+      DEMO_MODE: "${DEMO_MODE:-true}"
+      ORDERS_URL: http://orders:9100
+      PAYMENTS_ORDERS_SECRET_FILE: /run/secrets/payments_orders_secret
+      ORDERS_PAYMENTS_SECRET_FILE: /run/secrets/orders_payments_secret
+      PAYMENT_WEBHOOK_SECRET_FILE: /run/secrets/payment_webhook_secret
+    secrets: [payments_db_password, payments_gateway_secret, payments_orders_secret, orders_payments_secret, payment_webhook_secret]
+    networks: [private]
+    depends_on:
+      services-init:
+        condition: service_completed_successfully
+  vault:
+    image: hashicorp/vault:1.18
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['exec vault server -dev -dev-root-token-id="$(cat /run/secrets/vault_root_token)" -dev-listen-address=0.0.0.0:8200']
+    environment:
+      VAULT_ADDR: http://127.0.0.1:8200
+    secrets: [vault_root_token]
+    networks: [private]
+  vault-init:
+    build: .
+    command: ["python", "-m", "backend.scripts.init_vault"]
+    secrets: [vault_root_token, vault_gateway_token, auth_introspection_secret, inventory_gateway_secret, clients_gateway_secret, orders_gateway_secret, payments_gateway_secret, graphql_gateway_secret]
+    networks: [private]
+    depends_on: [vault]
+  gateway:
+    build: .
+    command: ["uvicorn", "backend.gateway.gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      PYTHON_DOTENV_DISABLED: "1"
+      AUTH_SERVICE_URL: http://auth:8100
+      INVENTORY_URL: http://inventory:9000
+      CLIENTS_URL: http://clients:9200
+      ORDERS_URL: http://orders:9100
+      PAYMENTS_URL: http://payments:9300
+      GRAPHQL_URL: http://graphql:9400
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN_FILE: /run/secrets/vault_gateway_token
+    secrets: [vault_gateway_token]
+    ports: ["127.0.0.1:8000:8000"]
+    networks: [private, public]
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+      auth:
+        condition: service_started
+      clients:
+        condition: service_started
+      orders:
+        condition: service_started
+      payments:
+        condition: service_started
+      inventory:
+        condition: service_started
+      graphql:
+        condition: service_started
+  graphql:
+    build: ./graphql
+    environment:
+      HOST: 0.0.0.0
+      PORT: "9400"
+      INVENTORY_URL: http://inventory:9000
+      ORDERS_URL: http://orders:9100
+      CLIENTS_URL: http://clients:9200
+      PAYMENTS_URL: http://payments:9300
+      INTERNAL_GATEWAY_SECRET_FILE: /run/secrets/graphql_gateway_secret
+      INVENTORY_GATEWAY_SECRET_FILE: /run/secrets/inventory_gateway_secret
+      ORDERS_GATEWAY_SECRET_FILE: /run/secrets/orders_gateway_secret
+      CLIENTS_GATEWAY_SECRET_FILE: /run/secrets/clients_gateway_secret
+      PAYMENTS_GATEWAY_SECRET_FILE: /run/secrets/payments_gateway_secret
+    secrets: [graphql_gateway_secret, inventory_gateway_secret, orders_gateway_secret, clients_gateway_secret, payments_gateway_secret]
+    networks: [private]
+    depends_on: [inventory, orders, clients, payments]
+secrets:
+  mysql_root_password:
+    file: ./.runtime/mysql_root_password
+  mysql_password:
+    file: ./.runtime/mysql_password
+  inventory_gateway_secret:
+    file: ./.runtime/inventory_gateway_secret
+  auth_db_password:
+    file: ./.runtime/auth_db_password
+  auth_introspection_secret:
+    file: ./.runtime/auth_introspection_secret
+  demo_admin_password:
+    file: ./.runtime/demo_admin_password
+  demo_client_password:
+    file: ./.runtime/demo_client_password
+  clients_db_password:
+    file: ./.runtime/clients_db_password
+  orders_db_password:
+    file: ./.runtime/orders_db_password
+  payments_db_password:
+    file: ./.runtime/payments_db_password
+  clients_gateway_secret:
+    file: ./.runtime/clients_gateway_secret
+  orders_gateway_secret:
+    file: ./.runtime/orders_gateway_secret
+  payments_gateway_secret:
+    file: ./.runtime/payments_gateway_secret
+  orders_clients_secret:
+    file: ./.runtime/orders_clients_secret
+  orders_inventory_secret:
+    file: ./.runtime/orders_inventory_secret
+  payments_orders_secret:
+    file: ./.runtime/payments_orders_secret
+  orders_payments_secret:
+    file: ./.runtime/orders_payments_secret
+  payment_webhook_secret:
+    file: ./.runtime/payment_webhook_secret
+  vault_root_token:
+    file: ./.runtime/vault_root_token
+  vault_gateway_token:
+    file: ./.runtime/vault_gateway_token
+  graphql_gateway_secret:
+    file: ./.runtime/graphql_gateway_secret
+  clients_auth_secret:
+    file: ./.runtime/clients_auth_secret
+volumes:
+  mysql_data:
+networks:
+  private:
+    internal: true
+  public: {}
