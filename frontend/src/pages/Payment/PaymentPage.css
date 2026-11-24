@@ -1,0 +1,24 @@
+.payment-page {
+    display: flex;
+    justify-content: center;
+    padding: 60px 20px;
+}
+
+.payment-card {
+    width: 100%;
+    max-width: 460px;
+}
+
+.payment-card form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.payment-card input {
+    padding: 12px;
+}
+
+.payment-summary {
+    margin: 24px 0;
+}

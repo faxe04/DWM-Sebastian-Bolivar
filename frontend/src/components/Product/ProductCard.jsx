@@ -1,4 +1,5 @@
 import "./ProductCard.css"
+import { addToCart } from "../../services/cart";
 
 
 export function ProductCard({ product }){
@@ -19,7 +20,8 @@ export function ProductCard({ product }){
                 </p>
                 <button
                     className="product-card-button"
-                    disabled={!(product.available > 0)}
+                    disabled={!product.available}
+                    onClick={() => addToCart(product)}
                 >
                     {product.available ? "Agregar al carrito" : "No disponible"}
                 </button>

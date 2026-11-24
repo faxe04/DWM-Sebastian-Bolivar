@@ -1,15 +1,20 @@
 import "./LoginPage.css";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { login, getMe } from "../../services/auth";
+import { useAuth } from "../../context/AuthContext";
 
 
 export function LoginPage() {
-    const Navigate = useNavigate();
-
+    const navigate = useNavigate();
+    const { signIn } = useAuth();
     const [form, setForm] = useState({
-        email: "",
-        password: "" // Ver como guardar hash luego 
-    })
+        username: "",
+        password: ""
+    });
+
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (event) => {
         setForm({
@@ -18,10 +23,28 @@ export function LoginPage() {
         });
     };
 
-    const handleSubmit = (event) => {
+    const handleSubmit = async (event) => {
         event.preventDefault();
-        console.log(form); // Temp
-        Navigate("/");
+        setError("");
+        setLoading(true);
+
+        try {
+            const result = await login(
+                form.username,
+                form.password
+            );
+
+            const userData = await getMe(result.access_token);
+
+            signIn(result.access_token, userData);
+
+            navigate("/");
+
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -31,22 +54,26 @@ export function LoginPage() {
                 <h1>Iniciar sesión</h1>
 
                 <p className="auth-description">
-                Ingresa a tu cuenta para continuar.
+                    Ingresa a tu cuenta para continuar.
                 </p>
 
                 <form onSubmit={handleSubmit}>
-                    <label htmlFor="email">Correo electrónico</label>
+                    <label htmlFor="username">
+                        Nombre de usuario
+                    </label>
 
                     <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={form.email}
+                        id="username"
+                        name="username"
+                        type="text"
+                        value={form.username}
                         onChange={handleChange}
                         required
                     />
 
-                    <label htmlFor="password">Contraseña</label>
+                    <label htmlFor="password">
+                        Contraseña
+                    </label>
 
                     <input
                         id="password"
@@ -57,8 +84,15 @@ export function LoginPage() {
                         required
                     />
 
-                    <button type="submit">Ingresar</button>
+                    {error && (
+                        <p role="alert" className="auth-error">
+                            {error}
+                        </p>
+                    )}
 
+                    <button type="submit" disabled={loading}>
+                        {loading ? "Ingresando..." : "Ingresar"}
+                    </button>
                 </form>
 
                 <p className="auth-register">
@@ -68,5 +102,5 @@ export function LoginPage() {
 
             </div>
         </section>
-    )
+    );
 }

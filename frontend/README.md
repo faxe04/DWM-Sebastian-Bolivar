@@ -24,7 +24,6 @@ Primero se modelo un boceto de la pagina y sus funciones principales, definiendo
 
 Tambien se identifico una identidad visual utilizando colores asociados al café. Para ellos se utilizo la pagina https://paletton.com/ resultado en la siguiente paleta de colores:
 
-
 Ademas, la aplicacion fue construirna en el enfoque Mobile First, desarrollando inicialmente en pantallas pequeñas y posteriormente adaptandola a mayores resoluciones.
 
 ## Tecnologías utilizadas
