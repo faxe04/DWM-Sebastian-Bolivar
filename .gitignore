@@ -38,4 +38,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
+.nouse/
