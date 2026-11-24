@@ -1,5 +1,5 @@
 import './App.css'
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { NavBar } from './components/NavBar/NavBar.jsx';
 import { Footer } from './components/Footer/Footer.jsx';
 import { HomePage } from './pages/HomePage.jsx'
@@ -8,12 +8,15 @@ import { AboutPage } from './pages/About/AboutPage.jsx';
 import { ContactPage } from './pages/Contact/ContactPage.jsx';
 import { LoginPage } from './pages/login/LoginPage.jsx';
 import { CartPage } from './pages/Cart/Cartpage.jsx';
+import { PaymentPage } from './pages/Payment/PaymentPage.jsx';
 import { PaymentApprovedPage } from './pages/PaymentApprovedPage/PaymentApprovedPage.jsx';
+import { PaymentRejectedPage } from './pages/PaymentRejectedPage/PaymentRejectedPage.jsx';
+
 
 function App() {
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <NavBar />
       <main className='main-content'>
         <Routes>
@@ -23,11 +26,13 @@ function App() {
           <Route path='/contacto' element={<ContactPage/>} />*/
           <Route path='/login' element={<LoginPage />} /> 
           <Route path='/carrito' element={<CartPage />} />
-          <Route path='/pago-aprobado' element={<PaymentApprovedPage />} /> 
+          <Route path="/pagar/:orderId" element={<PaymentPage />} />
+          <Route path='/pago-aprobado' element={<PaymentApprovedPage />} />
+          <Route path='/pago-rechazado' element={<PaymentRejectedPage />} />
         </Routes>
       </main>
       <Footer />
-    </BrowserRouter>
+    </HashRouter>
   )
 }
 
